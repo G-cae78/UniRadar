@@ -79,24 +79,31 @@ admin.initializeApp();
 //  });
     
 
-exports.getcomments= onRequest({ cors: true }, (request,response)=>{
-        //connect to our firestore database
-        let mydata= []
-        admin.firestore().collection('comments').orderBy("timestamp","desc").get().then((snapshot)=>{
-            if(snapshot.empty){
-                console.log("No matching documents");
-                response.send({data: 'No data in database'});
-                return;
-            }
+exports.getcomments = onRequest({ cors: true }, (request, response) => {
+    // Get the value of the 'source' query parameter from the request
+    const source = request.query.source;
+    console.log('Source: ',source);
+    // Connect to Firestore database
+    let mydata = [];
+    admin.firestore().collection('comments').where("source", '==', source).orderBy("timestamp", "desc").get().then((snapshot) => {
+        if (snapshot.empty) {
+            console.log("No matching documents");
+            response.send({ data: 'No data in database' });
+            return;
+        }
 
-            snapshot.forEach(doc=>{
-                mydata.push(Object.assign(doc.data(),{id:doc.id}));
-            });
-
-            //send data back to client
-            response.send({data:mydata});
+        snapshot.forEach(doc => {
+            mydata.push(Object.assign(doc.data(), { id: doc.id }));
         });
- }); 
+
+        // Send data back to client
+        response.send({ data: mydata });
+    }).catch(error => {
+        console.error('Error getting documents: ', error);
+        response.status(500).send({ error: 'Something went wrong!' });
+    });
+});
+
 
  exports.postcomment= onRequest({ cors: true }, (request,response)=>{
     const currentTime= Timestamp.now();
