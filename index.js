@@ -12,6 +12,7 @@ const {onRequest} = require("firebase-functions/v2/https");
 // const functions = require('firebase-functions');
 // Cloud Firestore
 const { Timestamp } = require('firebase-admin/firestore'); 
+const cors = require('cors')({origin:true});
 const admin= require('firebase-admin');
 const { error } = require("firebase-functions/logger");
 admin.initializeApp();
@@ -79,7 +80,7 @@ admin.initializeApp();
 //  });
     
 
-exports.getcomments = onRequest({ cors: true }, (request, response) => {
+exports.getcontent = onRequest({ cors: true }, (request, response) => {
     // Get the value of the 'source' query parameter from the request
     const source = request.query.source;
     console.log('Source: ',source);
@@ -104,35 +105,82 @@ exports.getcomments = onRequest({ cors: true }, (request, response) => {
     });
 });
 
+exports.getuserscomments = onRequest((request, response) => {
+    // CORS middleware
+    cors(request, response, () => {
+        const uid = request.query.uid;
+        console.log('uid: ', uid);
+        // Connect to Firestore database
+        let mydata = [];
+        admin.firestore().collection('comments').where("userId", '==', uid).orderBy("timestamp", "desc").get().then((snapshot) => {
+            if (snapshot.empty) {
+                console.log("No matching documents");
+                response.send({ data: 'No data in database' });
+                return;
+            }
 
- exports.postcomment= onRequest({ cors: true }, (request,response)=>{
+            snapshot.forEach(doc => {
+                mydata.push(Object.assign(doc.data(), { id: doc.id }));
+            });
+
+            // Send data back to client
+            response.send({ data: mydata });
+        }).catch(error => {
+            console.error('Error getting documents: ', error);
+            response.status(500).send({ error: 'Something went wrong!' });
+        });
+    });
+});
+
+
+ exports.postcontent= onRequest({ cors: true }, (request,response)=>{
     const currentTime= Timestamp.now();
         request.body.timestamp=currentTime;
-        request.body.likes=0;
-
+        
         return admin.firestore().collection('comments').add(request.body).then(()=>{
             response.send({data : "Saved in the database"});
         });
 });
 
 
-exports.deletecomment= onRequest({ cors: true },(request, response)=>{
-    crossOriginIsolated(request, response,()=>{
-        //deletes a comment using the id of the document
-        admin.firestore().collection("comments").doc(request.query.id).delete().then(()=>
-        {
-            response.json({data:"Document successfully deleted"});
-        })
-    });
- });
+// exports.deletecontent= onRequest({ cors: true },(request, response)=>{
+    
+//         //deletes a comment using the id of the document
+//         admin.firestore().collection("comments").doc(request.query.id).delete().then(()=>
+//         {
+//             response.json({data:"Document successfully deleted"});
+//         })
+//  });
 
- exports.updatecomment= onRequest((request,response)=>{
-    crossOriginIsolated(request,response,()=>{
-        return
-        admin.firestore().collection('comments').doc(request.query.id).update(request.body.data).then(()=>{
+ 
+exports.deletecontent = onRequest((request, response) => {
+
+    cors(request, response, () => {
+
+        // your function body here - use the provided req and res from cors
+
+        admin.firestore().collection("comments").doc(request.query.id).delete().then(function()               {
+
+            response.send("Document successfully deleted!");
+
+        })
+
+    });
+
+});
+
+
+
+ exports.updatecontent= onRequest((request,response)=>{
+   
+    cors(request, response, () => {
+        console.log(request.body);
+        admin.firestore().collection('comments').doc(request.query.id).update(request.body).then(()=>{
             response.json({data:"Updated document in database"});
         });
+
     });
+    
  });
 
 
